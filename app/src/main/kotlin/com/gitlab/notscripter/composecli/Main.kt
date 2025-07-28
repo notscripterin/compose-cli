@@ -6,27 +6,20 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.prompt
-import com.github.ajalt.mordant.animation.coroutines.animateInCoroutine
+import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
-import com.github.ajalt.mordant.rendering.TextColors.Companion.rgb
 import com.github.ajalt.mordant.rendering.TextStyles.*
-import com.github.ajalt.mordant.table.horizontalLayout
 import com.github.ajalt.mordant.terminal.Terminal
-import com.github.ajalt.mordant.widgets.Spinner
-import com.github.ajalt.mordant.widgets.progress.progressBarContextLayout
-import kotlinx.coroutines.delay
+import java.io.IOException
 
-fun sh(command: String): String =
-    Runtime.getRuntime()
-        .exec(arrayOf("bash", "-c", command))
-        .inputStream
-        .bufferedReader()
-        .readText()
+val t = Terminal()
+
+data class Device(val name: String, val id: String)
 
 data class Template(val name: String, val desc: String, val url: String)
 
 class Compose : SuspendingCliktCommand() {
-    override fun help(context: Context) = "A tool for compose and compose multiplatform"
+    override fun help(context: Context) = "A tool for compose"
 
     override suspend fun run() = Unit
 }
@@ -38,39 +31,21 @@ class Init : SuspendingCliktCommand() {
     private val id by option().prompt("Enter package id (org.example.myapp)")
     private val kmp by option("-kmp", "--kotlin-multi-platform")
 
-    val t = Terminal()
-
     override suspend fun run() {
 
-        t.println(brightRed("You can use any of the standard ANSI colors"))
+        // t.println(brightRed("You can use any of the standard ANSI colors"))
+        //
+        // val style = (bold + black + strikethrough)
+        // t.println(cyan("You ${(green on white)("can ${style("nest")} styles")} arbitrarily"))
+        //
+        // t.println(rgb("#b4eeb4")("You can also use true color and color spaces like HSL"))
+        // horizontalLayout {
+        //     cell("Spinner:")
+        //     cell(Spinner.Dots(initial = 2))
+        // }
 
-        val style = (bold + black + strikethrough)
-        t.println(cyan("You ${(green on white)("can ${style("nest")} styles")} arbitrarily"))
-
-        t.println(rgb("#b4eeb4")("You can also use true color and color spaces like HSL"))
-        horizontalLayout {
-            cell("Spinner:")
-            cell(Spinner.Dots(initial = 2))
-        }
-
-        val progress =
-            progressBarContextLayout<String> {
-                    text { "Status: $context" }
-                    progressBar()
-                    completed()
-                }
-                .animateInCoroutine(t, context = "Starting", total = 4, completed = 1)
-
-        launch { progress.execute() }
-
-        val states = listOf("Downloading", "Extracting", "Done")
-        for (state in states) {
-            delay(2)
-            progress.update {
-                context = state
-                completed += 1
-            }
-        }
+        val output = sh("ls", "-ls")
+        println(output)
 
         // val templates =
         //     listOf(
@@ -103,4 +78,78 @@ class Init : SuspendingCliktCommand() {
     }
 }
 
-suspend fun main(args: Array<String>) = Compose().subcommands(Init()).main(args)
+class Sync : SuspendingCliktCommand() {
+    override fun help(context: Context) = "Refresh all dependencies"
+
+    override suspend fun run() {
+        sh("./gradlew --refresh-dependencies", "Syncing...")
+    }
+}
+
+class Run : SuspendingCliktCommand() {
+    override fun help(context: Context) = "Build and run the app on selected device"
+
+    override suspend fun run() {
+        sh("./gradlew assembleDebug", "Building...")
+        val output = sh("adb devices -l", "getting devices")
+        val devices =
+            output
+                .split("\n")
+                .subList(1, output.split("\n").size)
+                .filter { it.isNotBlank() && it.contains("device ") }
+                .mapNotNull { line ->
+                    val parts = line.split("\\s+".toRegex(), limit = 2)
+                    if (parts.size < 2) null
+                    else
+                        Device(
+                            name =
+                                parts[1].substringAfter("model:").substringBefore(" ").takeIf {
+                                    it.isNotEmpty()
+                                } ?: "Unknown",
+                            id = parts[0].trim(),
+                        )
+                }
+        if (devices.isEmpty()) t.println("No devices found")
+        else devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
+    }
+}
+
+suspend fun main(args: Array<String>) = Compose().subcommands(Init(), Sync(), Run()).main(args)
+
+fun sh(command: String, label: String = "Processing"): String {
+    val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+
+    // Create spinner animation
+    val animation =
+        t.textAnimation<Int> { frame ->
+            val spinner = spinnerFrames[frame % spinnerFrames.size]
+            green("$spinner $label")
+        }
+
+    // Hide cursor
+    t.cursor.hide(showOnExit = true)
+
+    var process: Process? = null
+    try {
+        // Execute shell command
+        process = ProcessBuilder("sh", "-c", command).start()
+
+        // Animate spinner while command runs
+        var frame = 0
+        while (process.isAlive) {
+            animation.update(frame++)
+            Thread.sleep(100) // Update every 100ms
+        }
+        val output = process.inputStream.bufferedReader().readText()
+        animation.clear()
+        t.println(green("✔️ $label"))
+        return output.trim()
+    } catch (e: IOException) {
+        animation.stop()
+        throw IOException("❌ Failed to execute command: ${e.message}")
+    } finally {
+        animation.stop()
+        process?.destroy()
+        t.cursor.show()
+    }
+}

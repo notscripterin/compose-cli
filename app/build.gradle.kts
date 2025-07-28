@@ -15,6 +15,7 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:5.0.3")
     implementation("com.github.ajalt.mordant:mordant:3.0.2")
     implementation("com.github.ajalt.mordant:mordant-coroutines:3.0.2")
+    // implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
