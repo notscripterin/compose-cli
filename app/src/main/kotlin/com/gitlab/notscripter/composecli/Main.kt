@@ -10,6 +10,7 @@ import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
+import java.io.File
 import java.io.IOException
 
 val t = Terminal()
@@ -86,31 +87,88 @@ class Sync : SuspendingCliktCommand() {
     }
 }
 
+private fun getAdbDevices(): List<Device> {
+    val output = sh("adb devices -l", "Finding Devices...")
+    val devices: List<Device> =
+        output
+            .split("\n")
+            .subList(1, output.split("\n").size)
+            .filter { it.isNotBlank() && it.contains("device ") }
+            .mapNotNull { line ->
+                val parts = line.split("\\s+".toRegex(), limit = 2)
+                if (parts.size < 2) null
+                else
+                    Device(
+                        name =
+                            parts[1].substringAfter("model:").substringBefore(" ").takeIf {
+                                it.isNotEmpty()
+                            } ?: "Unknown",
+                        id = parts[0].trim(),
+                    )
+            }
+
+    // if (devices.isEmpty()) t.println("No devices found")
+    // else devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
+    return devices
+}
+
+private fun getApplicationId(pwd: String): String {
+    val file = File("${pwd}/app/build.gradle.kts")
+    if (!file.exists()) {
+        throw IOException()
+    }
+    val appId =
+        file
+            .readLines()
+            .map { it.trim() }
+            .find { it.startsWith("applicationId") }
+            ?.substringAfter("=")
+            ?.trim()
+
+    if (appId.isNullOrBlank()) {
+        throw IOException()
+    }
+
+    return appId
+}
+
+private fun getMainActivity(deviceId: String, applicationId: String): String {
+    if (deviceId.isNullOrEmpty() || applicationId.isNullOrEmpty()) {
+        throw IOException()
+    }
+
+    val mainActivity: String =
+        sh("adb -s ${deviceId} shell cmd package resolve-activity --brief ${applicationId}")
+
+    if (mainActivity.isNullOrBlank()) {
+        throw IOException()
+    }
+
+    return mainActivity.lines().find { it.contains("/") }
+}
+
 class Run : SuspendingCliktCommand() {
     override fun help(context: Context) = "Build and run the app on selected device"
 
+    private val deviceId by option("-d", "--device")
+
     override suspend fun run() {
-        sh("./gradlew assembleDebug", "Building...")
-        val output = sh("adb devices -l", "getting devices")
-        val devices =
-            output
-                .split("\n")
-                .subList(1, output.split("\n").size)
-                .filter { it.isNotBlank() && it.contains("device ") }
-                .mapNotNull { line ->
-                    val parts = line.split("\\s+".toRegex(), limit = 2)
-                    if (parts.size < 2) null
-                    else
-                        Device(
-                            name =
-                                parts[1].substringAfter("model:").substringBefore(" ").takeIf {
-                                    it.isNotEmpty()
-                                } ?: "Unknown",
-                            id = parts[0].trim(),
-                        )
-                }
-        if (devices.isEmpty()) t.println("No devices found")
-        else devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
+        val pwd = sh("pwd")
+        val appId = getApplicationId(pwd)
+        val mainActivity = getMainActivity("bd44c6807d31", appId)
+        t.println(mainActivity)
+        // sh("./gradlew assembleDebug", "Building...")
+        sh(
+            "adb -s ${deviceId} install ${pwd}/app/build/outputs/apk/debug/app-debug.apk",
+            "Installing...",
+        )
+
+        // val devices = getAdbDevices()
+        // if (devices.isEmpty()) {
+        //     t.println(red("❌No devices found"))
+        //     throw IOException()
+        // }
+        // devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
     }
 }
 
@@ -119,34 +177,43 @@ suspend fun main(args: Array<String>) = Compose().subcommands(Init(), Sync(), Ru
 fun sh(command: String, label: String = "Processing"): String {
     val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
-    // Create spinner animation
     val animation =
         t.textAnimation<Int> { frame ->
             val spinner = spinnerFrames[frame % spinnerFrames.size]
             green("$spinner $label")
         }
 
-    // Hide cursor
     t.cursor.hide(showOnExit = true)
 
     var process: Process? = null
     try {
-        // Execute shell command
         process = ProcessBuilder("sh", "-c", command).start()
 
-        // Animate spinner while command runs
         var frame = 0
         while (process.isAlive) {
             animation.update(frame++)
-            Thread.sleep(100) // Update every 100ms
+            Thread.sleep(100)
         }
         val output = process.inputStream.bufferedReader().readText()
+
+        if (process.exitValue() != 0) {
+            // val errorOutput = process.errorStream.bufferedReader().readText()
+            // throw IOException("❌Failed to execute command: ${command}")
+            // t.println(red("❌Failed to execute command: ${command}"))
+            throw IOException()
+        }
+
         animation.clear()
         t.println(green("✔️ $label"))
+
         return output.trim()
     } catch (e: IOException) {
-        animation.stop()
-        throw IOException("❌ Failed to execute command: ${e.message}")
+        animation.clear()
+        t.println(red("❌$label"))
+
+        // throw IOException(e.message)
+        t.println(red("❌Failed to execute command: ${command}"))
+        throw IOException()
     } finally {
         animation.stop()
         process?.destroy()
