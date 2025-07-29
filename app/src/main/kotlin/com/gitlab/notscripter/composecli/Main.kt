@@ -135,7 +135,7 @@ private fun updateTemplate(
     topLevelTempDir.deleteRecursively()
 }
 
-private fun getTemplatesDir(): File {
+private fun getTemplateDir(templateName: String): File {
     val jarPath =
         File(
             URLDecoder.decode(
@@ -144,7 +144,8 @@ private fun getTemplatesDir(): File {
             )
         )
 
-    return jarPath.parentFile.resolve("templates")
+    val templatesDir = jarPath.parentFile.resolve("templates")
+    return templatesDir.resolve(templateName)
 }
 
 class Init : SuspendingCliktCommand() {
@@ -166,7 +167,8 @@ class Init : SuspendingCliktCommand() {
         // val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
         // val baseDir = jarFile.parentFile
         // val templateDir = File(baseDir, "templates/ComposeTemplate")
-        val templateDir = File(getTemplatesDir(), "ComposeTemplate")
+        val templateDir = getTemplateDir("ComposeTemplate")
+        t.println(templateDir)
 
         if (!templateDir.exists()) t.println(red("Template not found"))
 
