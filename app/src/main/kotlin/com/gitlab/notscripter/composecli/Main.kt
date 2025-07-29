@@ -44,6 +44,27 @@ private fun matchAndReplace(templateDir: File, replacements: Map<String, String>
         }
 }
 
+private fun getApplicationName(pwd: File): String {
+    val file = File("${pwd}/settings.gradle.kts")
+    if (!file.exists()) {
+        throw IOException()
+    }
+    val appName =
+        file
+            .readLines()
+            .map { it.trim() }
+            .find { it.startsWith("rootProject.name") }
+            ?.substringAfter("=")
+            ?.trim()
+            ?.removeSurrounding("\"")
+
+    if (appName.isNullOrBlank()) {
+        throw IOException()
+    }
+
+    return appName
+}
+
 private fun getApplicationId(pwd: File): String {
     val file = File("${pwd}/app/build.gradle.kts")
     if (!file.exists()) {
@@ -78,11 +99,18 @@ private fun getMainActivity(deviceId: String, applicationId: String): String {
     return mainActivity
 }
 
-private fun updateTemplate(templateDir: File, tempDir: File, projectId: String) {
+private fun updateTemplate(
+    templateDir: File,
+    tempDir: File,
+    projectName: String,
+    projectId: String,
+) {
+    val templateAppName = getApplicationName(templateDir)
     val templateAppId = getApplicationId(templateDir)
+
     val topLevelPath = templateAppId.substringBefore(".")
 
-    matchAndReplace(tempDir, mapOf(templateAppId to projectId))
+    matchAndReplace(tempDir, mapOf(templateAppId to projectId, templateAppName to projectName))
 
     val templatePackagePath = templateAppId.replace(".", File.separator)
     val tempPackagePath = projectId.replace(".", File.separator)
@@ -126,7 +154,7 @@ class Init : SuspendingCliktCommand() {
         val tempDir = Files.createTempDirectory("compose-cli-template").toFile()
         templateDir.copyRecursively(tempDir, overwrite = true)
 
-        updateTemplate(templateDir, tempDir, projectId)
+        updateTemplate(templateDir, tempDir, projectName, projectId)
 
         val destination = File(projectName)
         if (destination.exists()) error("Directory already exists")
