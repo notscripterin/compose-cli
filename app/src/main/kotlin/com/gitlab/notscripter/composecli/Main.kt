@@ -14,7 +14,9 @@ import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
 import java.io.File
 import java.io.IOException
+import java.net.URLDecoder
 import java.nio.file.Files
+import kotlin.collections.emptyList
 
 val t = Terminal()
 
@@ -42,6 +44,10 @@ private fun matchAndReplace(templateDir: File, replacements: Map<String, String>
                 file.writeText(modified)
             }
         }
+}
+
+private fun listTemplates(templatesDir: File): List<String> {
+    return templatesDir.listFiles { file -> file.isDirectory }?.map { it.name } ?: emptyList()
 }
 
 private fun getApplicationName(pwd: File): String {
@@ -129,6 +135,18 @@ private fun updateTemplate(
     topLevelTempDir.deleteRecursively()
 }
 
+private fun getTemplatesDir(): File {
+    val jarPath =
+        File(
+            URLDecoder.decode(
+                object {}.javaClass.protectionDomain.codeSource.location.path,
+                "UTF-8",
+            )
+        )
+
+    return jarPath.parentFile.resolve("templates")
+}
+
 class Init : SuspendingCliktCommand() {
     override fun help(context: Context) = "Create new compose project"
 
@@ -145,9 +163,10 @@ class Init : SuspendingCliktCommand() {
     // path")
 
     override suspend fun run() {
-        val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
-        val baseDir = jarFile.parentFile
-        val templateDir = File(baseDir, "templates/ComposeTemplate")
+        // val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
+        // val baseDir = jarFile.parentFile
+        // val templateDir = File(baseDir, "templates/ComposeTemplate")
+        val templateDir = File(getTemplatesDir(), "ComposeTemplate")
 
         if (!templateDir.exists()) t.println(red("Template not found"))
 
