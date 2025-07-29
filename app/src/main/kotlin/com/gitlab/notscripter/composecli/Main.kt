@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.command.main
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.prompt
 import com.github.ajalt.clikt.parameters.options.required
@@ -11,9 +12,9 @@ import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
-import com.github.ajalt.mordant.terminal.prompt
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 val t = Terminal()
 
@@ -27,28 +28,90 @@ class Compose : SuspendingCliktCommand() {
     override suspend fun run() = Unit
 }
 
+private fun matchAndReplace(templateDir: File, replacements: Map<String, String>) {
+    templateDir
+        .walkTopDown()
+        .filter { it.isFile }
+        .forEach { file ->
+            val content = file.readText()
+            val modified =
+                replacements.entries.fold(content) { acc, (key, value) ->
+                    acc.replace("{{${key}}}", value)
+                }
+            file.writeText(modified)
+        }
+}
+
+private fun getApplicationId(pwd: File): String {
+    val file = File("${pwd}/app/build.gradle.kts")
+    if (!file.exists()) {
+        throw IOException()
+    }
+    val appId =
+        file
+            .readLines()
+            .map { it.trim() }
+            .find { it.startsWith("applicationId") }
+            ?.substringAfter("=")
+            ?.trim()
+
+    if (appId.isNullOrBlank()) {
+        throw IOException()
+    }
+
+    return appId
+}
+
+private fun getMainActivity(deviceId: String, applicationId: String): String {
+    val output =
+        sh("adb -s ${deviceId} shell cmd package resolve-activity --brief ${applicationId}")
+
+    var mainActivity = output.lines().find { it.contains("/") }
+
+    if (mainActivity.isNullOrBlank()) {
+        throw IOException()
+    }
+
+    return mainActivity
+}
+
+private fun updateTemplate(templateDir: File, tempDir: File, projectId: String) {
+    val templateAppId = getApplicationId(templateDir)
+    matchAndReplace(tempDir, mapOf(templateAppId to projectId))
+}
+
 class Init : SuspendingCliktCommand() {
     override fun help(context: Context) = "Create new compose project"
 
-    private val name by option().prompt("Enter name for your project")
-    private val id by option().prompt("Enter package id (org.example.myapp)")
-    private val kmp by option("-kmp", "--kotlin-multi-platform")
+    private val pwd = sh("pwd")
+
+    private val projectName by
+        option("-n", "--name").prompt("Enter name for the project").help("Project name")
+
+    private val projectId by
+        option("-p", "--package").prompt("Enter package id (org.example.myapp)").help("Package Id")
+
+    // private val path by
+    //     option("-l", "--location").prompt("Enter where to create the project").help("Project
+    // path")
 
     override suspend fun run() {
+        val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
+        val baseDir = jarFile.parentFile
+        val templateDir = File(baseDir, "templates/ComposeTemplate")
 
-        // t.println(brightRed("You can use any of the standard ANSI colors"))
-        //
-        // val style = (bold + black + strikethrough)
-        // t.println(cyan("You ${(green on white)("can ${style("nest")} styles")} arbitrarily"))
-        //
-        // t.println(rgb("#b4eeb4")("You can also use true color and color spaces like HSL"))
-        // horizontalLayout {
-        //     cell("Spinner:")
-        //     cell(Spinner.Dots(initial = 2))
-        // }
+        if (!templateDir.exists()) t.println(red("Template not found"))
 
-        val output = sh("ls", "-ls")
-        println(output)
+        val tempDir = Files.createTempDirectory("compose-cli-template").toFile()
+        templateDir.copyRecursively(tempDir, overwrite = true)
+
+        updateTemplate(templateDir, tempDir, projectId)
+
+        val destination = File(projectName)
+        if (destination.exists()) error("Directory already exists")
+
+        tempDir.copyRecursively(destination, overwrite = true)
+        println("✔️ Project '${projectName}' created")
 
         // val templates =
         //     listOf(
@@ -85,12 +148,12 @@ class Sync : SuspendingCliktCommand() {
     override fun help(context: Context) = "Refresh all dependencies"
 
     override suspend fun run() {
-        sh("./gradlew --refresh-dependencies", "Syncing...")
+        shln("./gradlew --refresh-dependencies", "Syncing...")
     }
 }
 
 private fun getAdbDevices(): List<Device> {
-    val output = sh("adb devices -l", "Finding Devices...")
+    val output = sh("adb devices -l")
     val devices: List<Device> =
         output
             .split("\n")
@@ -114,43 +177,6 @@ private fun getAdbDevices(): List<Device> {
     return devices
 }
 
-private fun getApplicationId(pwd: String): String {
-    val file = File("${pwd}/app/build.gradle.kts")
-    if (!file.exists()) {
-        throw IOException()
-    }
-    val appId =
-        file
-            .readLines()
-            .map { it.trim() }
-            .find { it.startsWith("applicationId") }
-            ?.substringAfter("=")
-            ?.trim()
-
-    if (appId.isNullOrBlank()) {
-        throw IOException()
-    }
-
-    return appId
-}
-
-private fun getMainActivity(deviceId: String, applicationId: String): String {
-    // if (deviceId.isNullOrEmpty() || applicationId.isNullOrEmpty()) {
-    //     throw IOException()
-    // }
-
-    val output =
-        sh("adb -s ${deviceId} shell cmd package resolve-activity --brief ${applicationId}")
-
-    var mainActivity = output.lines().find { it.contains("/") }
-
-    if (mainActivity.isNullOrBlank()) {
-        throw IOException()
-    }
-
-    return mainActivity
-}
-
 class Run : SuspendingCliktCommand() {
     override fun help(context: Context) = "Build and run the app on selected device"
 
@@ -158,95 +184,82 @@ class Run : SuspendingCliktCommand() {
 
     override suspend fun run() {
         val pwd = sh("pwd")
-        val appId = getApplicationId(pwd)
+        val appId = getApplicationId(File(pwd))
         val mainActivity = getMainActivity(deviceId, appId)
 
         // Build
-        sh("./gradlew assembleDebug", "Building...")
+        shln("./gradlew assembleDebug", "Building...")
 
         // Install
-        sh(
+        shln(
             "adb -s ${deviceId} install ${pwd}/app/build/outputs/apk/debug/app-debug.apk",
             "Installing...",
         )
 
         // Launch
-        sh(
+        shln(
             "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
             "Launching...",
         )
-
-        // val devices = getAdbDevices()
-        // if (devices.isEmpty()) {
-        //     t.println(red("❌No devices found"))
-        //     throw IOException()
-        // }
-        // devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
     }
 }
 
 suspend fun main(args: Array<String>) = Compose().subcommands(Init(), Sync(), Run()).main(args)
 
-private fun sh(command: String, label: String?): String {
+private fun sh(command: String): String {
+    return ProcessBuilder("sh", "-c", command)
+        .redirectErrorStream(true)
+        .start()
+        .inputStream
+        .bufferedReader()
+        .readText()
+        .trim()
+}
+
+private fun shln(command: String, label: String = "Loading..."): String {
     var process: Process? = null
 
-    if (label.isNullOrEmpty()) {
-        try {
-            process = ProcessBuilder("sh", "-c", command).start()
-            val output = process.inputStream.bufferedReader().readText()
+    val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
-            if (process.exitValue() != 0) {
-                throw IOException()
-            }
+    val animation =
+        t.textAnimation<Int> { frame ->
+            val spinner = spinnerFrames[frame % spinnerFrames.size]
+            green("$spinner $label")
+        }
 
-            return output.trim()
-        } catch (e: IOException) {
-            t.println(red("❌Failed to execute command: ${command}"))
+    t.cursor.hide(showOnExit = true)
+
+    try {
+        process = ProcessBuilder("sh", "-c", command).start()
+
+        var frame = 0
+        while (process.isAlive) {
+            animation.update(frame++)
+            Thread.sleep(100)
+        }
+        val output = process.inputStream.bufferedReader().readText()
+
+        if (process.exitValue() != 0) {
+            // val errorOutput = process.errorStream.bufferedReader().readText()
+            // throw IOException("❌Failed to execute command: ${command}")
+            // t.println(red("❌Failed to execute command: ${command}"))
             throw IOException()
         }
-    } else {
-        val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
-        val animation =
-            t.textAnimation<Int> { frame ->
-                val spinner = spinnerFrames[frame % spinnerFrames.size]
-                green("$spinner $label")
-            }
+        animation.clear()
+        t.println(green("✔️ $label"))
 
-        t.cursor.hide(showOnExit = true)
+        return output.trim()
+    } catch (e: IOException) {
+        animation.clear()
+        t.println(red("❌$label"))
 
-        try {
-            process = ProcessBuilder("sh", "-c", command).start()
-
-            var frame = 0
-            while (process.isAlive) {
-                animation.update(frame++)
-                Thread.sleep(100)
-            }
-            val output = process.inputStream.bufferedReader().readText()
-
-            if (process.exitValue() != 0) {
-                // val errorOutput = process.errorStream.bufferedReader().readText()
-                // throw IOException("❌Failed to execute command: ${command}")
-                // t.println(red("❌Failed to execute command: ${command}"))
-                throw IOException()
-            }
-
-            animation.clear()
-            t.println(green("✔️ $label"))
-
-            return output.trim()
-        } catch (e: IOException) {
-            animation.clear()
-            t.println(red("❌$label"))
-
-            // throw IOException(e.message)
-            t.println(red("❌Failed to execute command: ${command}"))
-            throw IOException()
-        } finally {
-            animation.stop()
-            process?.destroy()
-            t.cursor.show()
-        }
+        // throw IOException(e.message)
+        t.println(red("❌Failed to execute command: ${command}"))
+        throw IOException()
+    } finally {
+        animation.stop()
+        process?.destroy()
+        t.cursor.show()
     }
 }

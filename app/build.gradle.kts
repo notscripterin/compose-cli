@@ -24,4 +24,10 @@ java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
 application {
     // Define the main class for the application.
     mainClass = "com.gitlab.notscripter.composecli.MainKt"
+
+    tasks.register<Copy>("copyTemplates") {
+        from("build/libs/templates")
+        into("build/install/app/lib/templates")
+        doLast { println("✅ Templates copied to install path.") }
+    }
 }
