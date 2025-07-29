@@ -6,10 +6,12 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.prompt
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
+import com.github.ajalt.mordant.terminal.prompt
 import java.io.File
 import java.io.IOException
 
@@ -133,34 +135,45 @@ private fun getApplicationId(pwd: String): String {
 }
 
 private fun getMainActivity(deviceId: String, applicationId: String): String {
-    if (deviceId.isNullOrEmpty() || applicationId.isNullOrEmpty()) {
-        throw IOException()
-    }
+    // if (deviceId.isNullOrEmpty() || applicationId.isNullOrEmpty()) {
+    //     throw IOException()
+    // }
 
-    val mainActivity: String =
+    val output =
         sh("adb -s ${deviceId} shell cmd package resolve-activity --brief ${applicationId}")
+
+    var mainActivity = output.lines().find { it.contains("/") }
 
     if (mainActivity.isNullOrBlank()) {
         throw IOException()
     }
 
-    return mainActivity.lines().find { it.contains("/") }
+    return mainActivity
 }
 
 class Run : SuspendingCliktCommand() {
     override fun help(context: Context) = "Build and run the app on selected device"
 
-    private val deviceId by option("-d", "--device")
+    private val deviceId by option("-d", "--device").required()
 
     override suspend fun run() {
         val pwd = sh("pwd")
         val appId = getApplicationId(pwd)
-        val mainActivity = getMainActivity("bd44c6807d31", appId)
-        t.println(mainActivity)
-        // sh("./gradlew assembleDebug", "Building...")
+        val mainActivity = getMainActivity(deviceId, appId)
+
+        // Build
+        sh("./gradlew assembleDebug", "Building...")
+
+        // Install
         sh(
             "adb -s ${deviceId} install ${pwd}/app/build/outputs/apk/debug/app-debug.apk",
             "Installing...",
+        )
+
+        // Launch
+        sh(
+            "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
+            "Launching...",
         )
 
         // val devices = getAdbDevices()
@@ -174,49 +187,66 @@ class Run : SuspendingCliktCommand() {
 
 suspend fun main(args: Array<String>) = Compose().subcommands(Init(), Sync(), Run()).main(args)
 
-fun sh(command: String, label: String = "Processing"): String {
-    val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
-
-    val animation =
-        t.textAnimation<Int> { frame ->
-            val spinner = spinnerFrames[frame % spinnerFrames.size]
-            green("$spinner $label")
-        }
-
-    t.cursor.hide(showOnExit = true)
-
+private fun sh(command: String, label: String?): String {
     var process: Process? = null
-    try {
-        process = ProcessBuilder("sh", "-c", command).start()
 
-        var frame = 0
-        while (process.isAlive) {
-            animation.update(frame++)
-            Thread.sleep(100)
-        }
-        val output = process.inputStream.bufferedReader().readText()
+    if (label.isNullOrEmpty()) {
+        try {
+            process = ProcessBuilder("sh", "-c", command).start()
+            val output = process.inputStream.bufferedReader().readText()
 
-        if (process.exitValue() != 0) {
-            // val errorOutput = process.errorStream.bufferedReader().readText()
-            // throw IOException("❌Failed to execute command: ${command}")
-            // t.println(red("❌Failed to execute command: ${command}"))
+            if (process.exitValue() != 0) {
+                throw IOException()
+            }
+
+            return output.trim()
+        } catch (e: IOException) {
+            t.println(red("❌Failed to execute command: ${command}"))
             throw IOException()
         }
+    } else {
+        val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
-        animation.clear()
-        t.println(green("✔️ $label"))
+        val animation =
+            t.textAnimation<Int> { frame ->
+                val spinner = spinnerFrames[frame % spinnerFrames.size]
+                green("$spinner $label")
+            }
 
-        return output.trim()
-    } catch (e: IOException) {
-        animation.clear()
-        t.println(red("❌$label"))
+        t.cursor.hide(showOnExit = true)
 
-        // throw IOException(e.message)
-        t.println(red("❌Failed to execute command: ${command}"))
-        throw IOException()
-    } finally {
-        animation.stop()
-        process?.destroy()
-        t.cursor.show()
+        try {
+            process = ProcessBuilder("sh", "-c", command).start()
+
+            var frame = 0
+            while (process.isAlive) {
+                animation.update(frame++)
+                Thread.sleep(100)
+            }
+            val output = process.inputStream.bufferedReader().readText()
+
+            if (process.exitValue() != 0) {
+                // val errorOutput = process.errorStream.bufferedReader().readText()
+                // throw IOException("❌Failed to execute command: ${command}")
+                // t.println(red("❌Failed to execute command: ${command}"))
+                throw IOException()
+            }
+
+            animation.clear()
+            t.println(green("✔️ $label"))
+
+            return output.trim()
+        } catch (e: IOException) {
+            animation.clear()
+            t.println(red("❌$label"))
+
+            // throw IOException(e.message)
+            t.println(red("❌Failed to execute command: ${command}"))
+            throw IOException()
+        } finally {
+            animation.stop()
+            process?.destroy()
+            t.cursor.show()
+        }
     }
 }
