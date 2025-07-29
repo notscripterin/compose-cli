@@ -46,7 +46,8 @@ private fun matchAndReplace(templateDir: File, replacements: Map<String, String>
         }
 }
 
-private fun listTemplates(templatesDir: File): List<String> {
+private fun listTemplates(): List<String> {
+    val templatesDir = getTemplatesDir()
     return templatesDir.listFiles { file -> file.isDirectory }?.map { it.name } ?: emptyList()
 }
 
@@ -135,7 +136,7 @@ private fun updateTemplate(
     topLevelTempDir.deleteRecursively()
 }
 
-private fun getTemplateDir(templateName: String): File {
+private fun getTemplatesDir(): File {
     val jarPath =
         File(
             URLDecoder.decode(
@@ -144,7 +145,11 @@ private fun getTemplateDir(templateName: String): File {
             )
         )
 
-    val templatesDir = jarPath.parentFile.resolve("templates")
+    return jarPath.parentFile.resolve("templates")
+}
+
+private fun getTemplateDir(templateName: String): File {
+    val templatesDir = getTemplatesDir()
     return templatesDir.resolve(templateName)
 }
 
@@ -222,6 +227,17 @@ class Sync : SuspendingCliktCommand() {
     }
 }
 
+class ListTemplates : SuspendingCliktCommand() {
+    override fun help(context: Context) = "List Templates"
+
+    override suspend fun run() {
+        val templates = listTemplates()
+
+        t.println("Available templates:")
+        templates.forEach { t.println(it) }
+    }
+}
+
 private fun getAdbDevices(): List<Device> {
     val output = sh("adb devices -l")
     val devices: List<Device> =
@@ -274,7 +290,8 @@ class Run : SuspendingCliktCommand() {
     }
 }
 
-suspend fun main(args: Array<String>) = Compose().subcommands(Init(), Sync(), Run()).main(args)
+suspend fun main(args: Array<String>) =
+    Compose().subcommands(Init(), Sync(), Run(), ListTemplates()).main(args)
 
 private fun sh(command: String): String {
     return ProcessBuilder("sh", "-c", command)
