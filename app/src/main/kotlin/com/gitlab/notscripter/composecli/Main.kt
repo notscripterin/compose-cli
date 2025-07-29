@@ -167,8 +167,8 @@ class Init : SuspendingCliktCommand() {
         // val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
         // val baseDir = jarFile.parentFile
         // val templateDir = File(baseDir, "templates/ComposeTemplate")
+
         val templateDir = getTemplateDir("ComposeTemplate")
-        t.println(templateDir)
 
         if (!templateDir.exists()) t.println(red("Template not found"))
 
@@ -181,7 +181,7 @@ class Init : SuspendingCliktCommand() {
         if (destination.exists()) error("Directory already exists")
 
         tempDir.copyRecursively(destination, overwrite = true)
-        println("✔️ Project '${projectName}' created")
+        t.println(green("✔️ Project '${projectName}' created"))
 
         // val templates =
         //     listOf(
