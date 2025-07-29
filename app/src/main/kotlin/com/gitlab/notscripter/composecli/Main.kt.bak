@@ -80,25 +80,19 @@ private fun getMainActivity(deviceId: String, applicationId: String): String {
 
 private fun updateTemplate(templateDir: File, tempDir: File, projectId: String) {
     val templateAppId = getApplicationId(templateDir)
-    val topLevelPath = templateAppId.substringBefore(".")
-
     matchAndReplace(tempDir, mapOf(templateAppId to projectId))
 
     val templatePackagePath = templateAppId.replace(".", File.separator)
     val tempPackagePath = projectId.replace(".", File.separator)
 
     val rootDir = File("${tempDir}/app/src/main/java")
-    val topLevelTempDir = File(rootDir, "temp")
-
-    File(rootDir, topLevelPath).renameTo(topLevelTempDir)
-
-    val templatePackageDir = File(topLevelTempDir, templatePackagePath.substringAfter("/"))
+    val templatePackageDir = File(rootDir, templatePackagePath)
     val tempPackageDir = File(rootDir, tempPackagePath)
 
     tempPackageDir.mkdirs()
-    templatePackageDir.copyRecursively(tempPackageDir, overwrite = true)
 
-    topLevelTempDir.deleteRecursively()
+    templatePackageDir.copyRecursively(tempPackageDir, overwrite = true)
+    templatePackageDir.deleteRecursively()
 }
 
 class Init : SuspendingCliktCommand() {
