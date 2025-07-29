@@ -164,17 +164,12 @@ class Init : SuspendingCliktCommand() {
     private val projectId by
         option("-p", "--package").prompt("Enter package id (org.example.myapp)").help("Package Id")
 
-    // private val path by
-    //     option("-l", "--location").prompt("Enter where to create the project").help("Project
-    // path")
+    private val projectPath by
+        option("-l", "--location").prompt("Enter where to create the project").help("Project path")
     private val templateName by
         option("-t", "--template").prompt("Enter which template to use").help("Template name")
 
     override suspend fun run() {
-        // val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
-        // val baseDir = jarFile.parentFile
-        // val templateDir = File(baseDir, "templates/ComposeTemplate")
-
         val templateDir = getTemplateDir(templateName ?: "ComposeTemplate")
 
         if (!templateDir.exists()) t.println(red("Template not found"))
@@ -184,40 +179,11 @@ class Init : SuspendingCliktCommand() {
 
         updateTemplate(templateDir, tempDir, projectName, projectId)
 
-        val destination = File(projectName)
+        val destination = File(projectPath ?: projectName)
         if (destination.exists()) error("Directory already exists")
 
         tempDir.copyRecursively(destination, overwrite = true)
         t.println(green("✔️ Project '${projectName}' created"))
-
-        // val templates =
-        //     listOf(
-        //         Template("compose-template", "Android with compose",
-        // "https://gitlab.com/notscripter/compose-template.git"),
-        //     )
-        //
-        // echo("\nAvailable Templates:\n")
-        // templates.forEachIndexed { index, t ->
-        //     echo("[${index + 1}] ${t.name.padEnd(10)} - ${t.desc}")
-        // }
-        //
-        // echo("\nChoose a template [1-${templates.size}]: ")
-        // val choice = readln().toIntOrNull()
-        //
-        // val selected = templates.getOrNull((choice ?: -1) - 1)
-        // if (selected == null) {
-        //     echo("❌ Invalid selection. Exiting.")
-        //     return
-        // }
-        //
-        // val home = System.getProperty("user.home")
-        // val source = File("$home/.namaste/templates/${selected.name}")
-        // val target = File("./$name")
-        //
-        // echo("⏳ Copying ${selected.name} template to ${target.name} ...")
-        // // source.copyRecursively(target, overwrite = true)
-        // echo("✅ Done! Project created at ./${target.name}")
-        // echo(kmp)
     }
 }
 
