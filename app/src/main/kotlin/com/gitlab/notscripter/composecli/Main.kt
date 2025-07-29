@@ -167,13 +167,15 @@ class Init : SuspendingCliktCommand() {
     // private val path by
     //     option("-l", "--location").prompt("Enter where to create the project").help("Project
     // path")
+    private val templateName by
+        option("-t", "--template").prompt("Enter which template to use").help("Template name")
 
     override suspend fun run() {
         // val jarFile = File(javaClass.protectionDomain.codeSource.location.toURI())
         // val baseDir = jarFile.parentFile
         // val templateDir = File(baseDir, "templates/ComposeTemplate")
 
-        val templateDir = getTemplateDir("ComposeTemplate")
+        val templateDir = getTemplateDir(templateName ?: "ComposeTemplate")
 
         if (!templateDir.exists()) t.println(red("Template not found"))
 
