@@ -8,6 +8,7 @@ import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
@@ -16,6 +17,7 @@ import java.io.File
 import java.io.IOException
 import java.net.URLDecoder
 import java.nio.file.Files
+import java.util.regex.Pattern
 import kotlin.collections.emptyList
 
 val t = Terminal()
@@ -192,22 +194,98 @@ class Sync : SuspendingCliktCommand() {
     }
 }
 
+private fun isValidHexaCode(hex: String): Boolean {
+    val hexaPattern = Pattern.compile("^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$")
+
+    val matcher = hexaPattern.matcher(hex)
+
+    return matcher.matches()
+}
+
+private fun resizeImage(image: File, size: String, output: File) {
+    sh("magick ${image} -resize ${size} ${output}")
+}
+
 class Launcher : SuspendingCliktCommand() {
     override fun help(context: Context) = "Modify the launcher icon of the app"
 
-    private val foreground by option("-f", "--foreground").file()
-    private val background by option("-b", "--background").file()
+    private val foreground by option("-f", "--foreground")
+    private val background by option("-b", "--background")
+
+    private class Mipmap(name: String, imageSize: Int, tempDir: File) {
+        val imageSize: String = "${imageSize}x${imageSize}"
+        val dir: File = File(tempDir, "mipmap-${name}")
+    }
 
     override suspend fun run() {
         val resDir = File("./app/src/main/res")
         if (!resDir.exists()) error("res dir dont exists")
+
         val tempResDir = Files.createTempDirectory("launcerRes").toFile()
-        val xxxhdpiDir = File(tempResDir, "mipmap-xxxhdpi")
-        val xxhdpiDir = File(tempResDir, "mipmap-xxhdpi")
-        val xhdpiDir = File(tempResDir, "mipmap-xhdpi")
-        val mdpiDir = File(tempResDir, "mipmap-mdpi")
-        val hdpiDir = File(tempResDir, "mipmap-hdpi")
-        val anydpiV26Dir = File(tempResDir, "mipmap-anydpi-v26")
+
+        // val xxxhdpiDir = File(tempResDir, "mipmap-xxxhdpi")
+        // val xxhdpiDir = File(tempResDir, "mipmap-xxhdpi")
+        // val xhdpiDir = File(tempResDir, "mipmap-xhdpi")
+        // val hdpiDir = File(tempResDir, "mipmap-hdpi")
+        // val mdpiDir = File(tempResDir, "mipmap-mdpi")
+        // val anydpiV26Dir = File(tempResDir, "mipmap-anydpi-v26")
+        //
+        // xxxhdpiDir.mkdir()
+        // xxhdpiDir.mkdir()
+        // xhdpiDir.mkdir()
+        // hdpiDir.mkdir()
+        // mdpiDir.mkdir()
+        // anydpiV26Dir.mkdir()
+
+        val mipmaps =
+            listOf<Mipmap>(
+                Mipmap("xxxhdpi", 432, tempResDir),
+                Mipmap("xxhdpi", 324, tempResDir),
+                Mipmap("xhdpi", 216, tempResDir),
+                Mipmap("hdpi", 162, tempResDir),
+                Mipmap("mdpi", 108, tempResDir),
+            )
+        mipmaps.forEach { it.dir.mkdir() }
+
+        if (foreground != null) {
+            mipmaps.forEach {
+                sh(
+                    "magick ${foreground} -resize ${it.imageSize} ${File(it.dir, "ic_launcher_foreground.png")}"
+                )
+            }
+        }
+
+        when (background != null) {
+            isValidHexaCode(background.toString()) -> {
+                mipmaps.forEach {
+                    sh(
+                        "magick -size ${it.imageSize} xc:${background} ${File(it.dir, "ic_launcher_background.png")}"
+                    )
+                }
+            }
+            File(background).exists() -> {
+                mipmaps.forEach {
+                    sh(
+                        "magick ${background} -resize ${it.imageSize} ${File(it.dir, "ic_launcher_background.png")}"
+                    )
+                }
+            }
+            else -> error("please provide valid background")
+        }
+
+        // if (background != null) {
+        //     if (isValidHexaCode(background.toString())) {}
+        //
+        //     if (File(background).exists()) {}
+        //     mipmaps.forEach {
+        //         sh(
+        //             "magick ${background} -resize ${it.imageSize} ${File(it.dir,
+        // "ic_launcher_background.png")}"
+        //         )
+        //     }
+        // }
+
+        t.println(tempResDir)
     }
 }
 
