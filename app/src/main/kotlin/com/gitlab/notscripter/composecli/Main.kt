@@ -6,8 +6,8 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.prompt
 import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
@@ -25,7 +25,8 @@ data class Device(val name: String, val id: String)
 data class Template(val name: String, val desc: String, val url: String)
 
 class Compose : SuspendingCliktCommand() {
-    override fun help(context: Context) = "A tool for compose"
+    override fun help(context: Context) =
+        "Made to ease the development process of Android app with Jetpack-Compose from the terminal"
 
     override suspend fun run() = Unit
 }
@@ -158,16 +159,12 @@ class Init : SuspendingCliktCommand() {
 
     private val pwd = sh("pwd")
 
-    private val projectName by
-        option("-n", "--name").prompt("Enter name for the project").help("Project name")
+    private val projectName by option("-n", "--name").help("Project name").required()
 
-    private val projectId by
-        option("-p", "--package").prompt("Enter package id (org.example.myapp)").help("Package Id")
+    private val projectId by option("-p", "--package").help("Package Id").required()
 
-    private val projectPath by
-        option("-l", "--location").prompt("Enter where to create the project").help("Project path")
-    private val templateName by
-        option("-t", "--template").prompt("Enter which template to use").help("Template name")
+    private val projectPath by option("-l", "--location").help("Project path")
+    private val templateName by option("-t", "--template").help("Template name")
 
     override suspend fun run() {
         val templateDir = getTemplateDir(templateName ?: "ComposeTemplate")
@@ -192,6 +189,25 @@ class Sync : SuspendingCliktCommand() {
 
     override suspend fun run() {
         shln("./gradlew --refresh-dependencies", "Syncing...")
+    }
+}
+
+class Launcher : SuspendingCliktCommand() {
+    override fun help(context: Context) = "Modify the launcher icon of the app"
+
+    private val foreground by option("-f", "--foreground").file()
+    private val background by option("-b", "--background").file()
+
+    override suspend fun run() {
+        val resDir = File("./app/src/main/res")
+        if (!resDir.exists()) error("res dir dont exists")
+        val tempResDir = Files.createTempDirectory("launcerRes").toFile()
+        val xxxhdpiDir = File(tempResDir, "mipmap-xxxhdpi")
+        val xxhdpiDir = File(tempResDir, "mipmap-xxhdpi")
+        val xhdpiDir = File(tempResDir, "mipmap-xhdpi")
+        val mdpiDir = File(tempResDir, "mipmap-mdpi")
+        val hdpiDir = File(tempResDir, "mipmap-hdpi")
+        val anydpiV26Dir = File(tempResDir, "mipmap-anydpi-v26")
     }
 }
 
@@ -237,8 +253,8 @@ class Run : SuspendingCliktCommand() {
     private val deviceId by option("-d", "--device").required()
 
     override suspend fun run() {
-        val pwd = sh("pwd")
-        val appId = getApplicationId(File(pwd))
+        // val pwd = sh("pwd")
+        val appId = getApplicationId(File("./"))
         val mainActivity = getMainActivity(deviceId, appId)
 
         // Build
@@ -246,7 +262,7 @@ class Run : SuspendingCliktCommand() {
 
         // Install
         shln(
-            "adb -s ${deviceId} install ${pwd}/app/build/outputs/apk/debug/app-debug.apk",
+            "adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
             "Installing...",
         )
 
@@ -259,7 +275,7 @@ class Run : SuspendingCliktCommand() {
 }
 
 suspend fun main(args: Array<String>) =
-    Compose().subcommands(Init(), Sync(), Run(), ListTemplates()).main(args)
+    Compose().subcommands(Init(), Sync(), Run(), ListTemplates(), Launcher()).main(args)
 
 private fun sh(command: String): String {
     return ProcessBuilder("sh", "-c", command)
