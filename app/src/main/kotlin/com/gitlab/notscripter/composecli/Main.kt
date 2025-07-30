@@ -159,12 +159,8 @@ private fun getTemplateDir(templateName: String): File {
 class Init : SuspendingCliktCommand() {
     override fun help(context: Context) = "Create new compose project"
 
-    private val pwd = sh("pwd")
-
     private val projectName by option("-n", "--name").help("Project name").required()
-
     private val projectId by option("-p", "--package").help("Package Id").required()
-
     private val projectPath by option("-l", "--location").help("Project path")
     private val templateName by option("-t", "--template").help("Template name")
 
@@ -272,18 +268,6 @@ class Launcher : SuspendingCliktCommand() {
             }
             else -> error("please provide valid background")
         }
-
-        // if (background != null) {
-        //     if (isValidHexaCode(background.toString())) {}
-        //
-        //     if (File(background).exists()) {}
-        //     mipmaps.forEach {
-        //         sh(
-        //             "magick ${background} -resize ${it.imageSize} ${File(it.dir,
-        // "ic_launcher_background.png")}"
-        //         )
-        //     }
-        // }
 
         t.println(tempResDir)
     }
