@@ -39,7 +39,9 @@ class Launcher : SuspendingCliktCommand() {
     private val tempDirToBeDeleted = File(tempDir, ".temp")
 
     private val mainDir = File("./app/src/main")
+    private val resDir = File(mainDir, "res")
 
+    private val playStore = Mipmap("play_store", 512, tempDir)
     private val mipmaps =
         listOf<Mipmap>(
             Mipmap("xxxhdpi", 432, tempResDir),
@@ -62,6 +64,9 @@ class Launcher : SuspendingCliktCommand() {
         val foregroundImage = File(foreground)
         var backgroundImage = File(background)
 
+        tempResDir.mkdir()
+        tempDirToBeDeleted.mkdir()
+
         if (!foregroundImage.exists()) error("cant find foreground image")
         if (!backgroundImage.exists()) {
             backgroundImage = File(tempDirToBeDeleted, "background.png")
@@ -72,17 +77,20 @@ class Launcher : SuspendingCliktCommand() {
             }
         }
 
-        if (!mainDir.exists()) error("res dir dont exists")
+        if (!resDir.exists()) error("res dir dont exists")
 
-        tempDir.deleteOnExit()
         mipmaps.forEach { it.dir.mkdir() }
 
-        val playStore = Mipmap("play_store", 512, tempResDir.parentFile)
-        val anydpiIcLauncher = File(tempResDir, "mipmap-anydpi-v26/ic_launcher.xml")
+        val anydpiDir = File(resDir, "mipmap-anydpi-v26")
+        val anydpiIcLauncher = File(anydpiDir, "ic_launcher.xml")
+        val anydpiTempDir = File(tempResDir, "mipmap-anydpi-v26")
+        val anydpiTempIcLauncher = File(anydpiDir, "ic_launcher.xml")
+
+        if (!anydpiDir.exists()) anydpiTempDir.mkdir()
 
         if (!anydpiIcLauncher.exists()) {
-            anydpiIcLauncher.createNewFile()
-            val icLauncher = FileWriter(anydpiIcLauncher)
+            anydpiTempIcLauncher.createNewFile()
+            val icLauncher = FileWriter(anydpiTempIcLauncher)
             icLauncher.write(
                 """
                 <?xml version="1.0" encoding="utf-8"?>
@@ -105,21 +113,28 @@ class Launcher : SuspendingCliktCommand() {
             )
         }
 
+        // Foreground
         mipmaps.forEach {
             sh(
-                "magick ${foreground} -resize ${it.imageSize} ${File(it.dir,
-"ic_launcher_foreground.png",)}"
+                "magick ${foregroundImage} -resize ${it.imageSize} ${File(it.dir, "ic_launcher_foreground.png")}"
             )
         }
+        // Background
         mipmaps.forEach {
             sh(
-                "magick ${background} -resize ${it.imageSize} ${File(it.dir,
-"ic_launcher_background.png",)}"
+                "magick ${backgroundImage} -resize ${it.imageSize} ${File(it.dir, "ic_launcher_background.png")}"
+            )
+        }
+        // Merged
+        mipmaps.forEach {
+            sh(
+                "magick ${File(it.dir, "ic_launcher_background.png")} ${File(it.dir, "ic_launcher_foreground.png")} -gravity center -composite ${File(it.dir, "ic_launcher.png")}"
             )
         }
 
         tempDirToBeDeleted.delete()
-        tempDir.copyRecursively(mainDir)
+        tempDir.copyRecursively(mainDir, overwrite = true)
+        tempDir.delete()
         t.println(tempDir)
     }
 }

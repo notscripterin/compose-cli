@@ -18,11 +18,6 @@ class Init : SuspendingCliktCommand() {
     override fun help(context: Context) =
         "  Kickstart a new Jetpack Compose app from your terminal."
 
-    private val projectNameArg by argument().optional()
-    private val projectIdArg by argument().optional()
-    private val projectPathArg by argument().optional()
-    private val templateNameArg by argument().optional()
-
     private val projectNameOpt by option("-n", "--name").help("App name (e.g., MyComposeApp)")
     private val projectIdOpt by
         option("-p", "--package").help("Package name (e.g., com.example.app)")
@@ -31,11 +26,16 @@ class Init : SuspendingCliktCommand() {
     private val templateNameOpt by
         option("-t", "--template").help("Template to use (use `compose list-templates` to see all)")
 
+    private val projectNameArg by argument("name").optional()
+    private val projectIdArg by argument("package").optional()
+    private val projectPathArg by argument("location").optional()
+    private val templateNameArg by argument("template").optional()
+
     override suspend fun run() {
-        val projectName = projectNameArg ?: projectNameOpt
-        val projectId = projectIdArg ?: projectIdOpt
-        val projectPath = projectPathArg ?: projectPathOpt
-        val templateName = templateNameArg ?: templateNameOpt
+        val projectName = projectNameOpt ?: projectNameArg
+        val projectId = projectIdOpt ?: projectIdArg
+        val projectPath = projectPathOpt ?: projectPathArg
+        val templateName = templateNameOpt ?: templateNameArg
 
         if (projectName == null) {
             error("project name is reqruied")
