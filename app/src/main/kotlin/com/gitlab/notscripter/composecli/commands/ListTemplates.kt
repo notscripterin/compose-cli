@@ -8,7 +8,8 @@ import com.gitlab.notscripter.composecli.compose.listTemplates
 import com.gitlab.notscripter.composecli.compose.t
 
 class ListTemplates : SuspendingCliktCommand() {
-    override fun help(context: Context) = "List Templates"
+    override fun help(context: Context) =
+        "🗂️  Peek at available project templates (starter kits for devs)"
 
     override suspend fun run() {
         val templates = listTemplates()

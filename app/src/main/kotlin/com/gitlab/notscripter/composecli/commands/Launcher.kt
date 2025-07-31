@@ -14,7 +14,8 @@ import java.io.FileWriter
 import java.nio.file.Files
 
 class Launcher : SuspendingCliktCommand() {
-    override fun help(context: Context) = "Modify the launcher icon of the app"
+    override fun help(context: Context) =
+        "🎨  Generate adaptive launcher icons without dragging SVGs around"
 
     private val foreground by option("-f", "--foreground").required()
     private val background by option("-b", "--background").required()

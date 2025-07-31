@@ -12,7 +12,8 @@ import com.gitlab.notscripter.composecli.compose.shln
 import java.io.File
 
 class Run : SuspendingCliktCommand() {
-    override fun help(context: Context) = "Build and run the app on selected device"
+    override fun help(context: Context) =
+        "🚀  Build and launch on a device or emulator — no mouse needed"
 
     private val deviceId by option("-d", "--device").required()
 

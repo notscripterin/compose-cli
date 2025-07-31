@@ -14,7 +14,8 @@ import java.io.File
 import java.nio.file.Files
 
 class Init : SuspendingCliktCommand() {
-    override fun help(context: Context) = "Create new Android project with compose"
+    override fun help(context: Context) =
+        "🧱  Start a new Compose project (in less time than it takes AS to open)"
 
     private val projectName by option("-n", "--name").help("Project name").required()
     private val projectId by option("-p", "--package").help("Package Id").required()
