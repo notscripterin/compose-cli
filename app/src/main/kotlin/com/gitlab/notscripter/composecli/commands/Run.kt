@@ -2,6 +2,7 @@ package com.gitlab.notscripter.composecli
 
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.core.Context
+import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.mordant.rendering.TextColors.*
@@ -13,9 +14,10 @@ import java.io.File
 
 class Run : SuspendingCliktCommand() {
     override fun help(context: Context) =
-        "🚀  Build and launch on a device or emulator — no mouse needed"
+        "   Build and launch on a device or emulator — no mouse needed"
 
-    private val deviceId by option("-d", "--device").required()
+    private val deviceId by
+        option("-d", "--device").required().help("ADB device ID (use `adb devices` to list)")
 
     override suspend fun run() {
         val appId = getApplicationId(File("./"))

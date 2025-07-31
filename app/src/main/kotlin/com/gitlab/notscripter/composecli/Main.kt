@@ -12,32 +12,6 @@ class Compose : SuspendingCliktCommand(name = "compose") {
     override fun help(context: Context) =
         "Compose Cli — for Android devs who live in the terminal  "
 
-    // override fun help(context: Context) =
-    //     """
-    //     Sick of clicking around Android Studio? Same.
-    //
-    //     Compose lets you scaffold, run, and manage Jetpack Compose apps from your terminal —
-    // fast, clean, and keyboard-only.
-    // """
-    //         .trimIndent()
-
-    // init {
-    //     context {
-    //         helpFormatter = CliktHelpFormatter(showDefaultValues = true) { section ->
-    //             when (section) {
-    //                 HelpFormatter.Section.ARGUMENTS -> section
-    //                 HelpFormatter.Section.OPTIONS -> section
-    //                 HelpFormatter.Section.COMMANDS -> section
-    //                 HelpFormatter.Section.EPILOG -> """
-    //                     Because Android dev shouldn't need 16GB RAM just to say "Hello, World."
-    // 😎
-    //                 """.trimIndent()
-    //                 else -> section
-    //             }
-    //         }
-    //     }
-    // }
-
     override suspend fun run() = Unit
 }
 
