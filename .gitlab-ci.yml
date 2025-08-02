@@ -2,6 +2,7 @@ image: gradle:alpine
 
 stages:
   - build
+  - deploy
 
 before_script:
   - GRADLE_USER_HOME="$(pwd)/.gradle"
