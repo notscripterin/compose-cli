@@ -23,12 +23,11 @@ tasks.register<Copy>("copyTemplates") {
     doLast { println("✅ Templates copied to install path.") }
 }
 
-val projectName =
-    "${System.getenv("CI_PROJECT_NAME") ?: project.name}-${System.getenv("CI_COMMIT_TAG") ?: "dev"}"
+// val projectName = "${System.getenv("CI_PROJECT_NAME") ?: project.name}-${System.getenv("CI_COMMIT_TAG") ?: "dev"}"
 
 distributions {
     main {
-        distributionBaseName.set("${projectName}")
+        // distributionBaseName.set("${projectName}")
         contents { from("build/libs/templates") { into("lib/templates") } }
     }
 }
