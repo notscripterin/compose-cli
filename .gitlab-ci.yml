@@ -2,8 +2,9 @@ workflow:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-before_script:
-  - PROJECT_NAME="${$CI_PROJECT_NAME}-${CI_COMMIT_TAG:-dev}"
+variables:
+    PROJECT_NAME: "$CI_PROJECT_NAME"
+    VERSION: "${CI_COMMIT_TAG:-dev}"
 
 stages:
   - build
@@ -24,8 +25,8 @@ build:
     - gradle --build-cache distZip distTar
   artifacts:
     paths:
-      - app/build/distributions/$PROJECT_NAME.zip
-      - app/build/distributions/$PROJECT_NAME.tar
+      - app/build/distributions/$PROJECT_NAME-$VERSION.zip
+      - app/build/distributions/$PROJECT_NAME-$VERSION.tar
     expire_in: 1 day
 
 deploy:
@@ -37,12 +38,12 @@ deploy:
     - echo "running release_job for $TAG"
   release:
     tag_name: $CI_COMMIT_TAG
-    name: "Release $CI_PROJECT_NAME-$CI_COMMIT_TAG"
-    description: "Release notes for $PROJECT_NAME"
-    ref: "$CI_COMMIT_SHA"
+    name: Release $CI_PROJECT_NAME-$VERSION
+    description: Release notes for $PROJECT_NAME-$VERSION
+    ref: $CI_COMMIT_SHA
     assets:
       links:
-        - name: "$PROJECT_NAME.zip"
-          url: "$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/app/build/distributions/$PROJECT_NAME.zip"
-        - name: "$PROJECT_NAME.tar"
-          url: "$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/app/build/distributions/$PROJECT_NAME.tar"
+        - name: $PROJECT_NAME.zip
+          url: $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/app/build/distributions/$PROJECT_NAME.zip
+        - name: $PROJECT_NAME.tar
+          url: $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/app/build/distributions/$PROJECT_NAME.tar
