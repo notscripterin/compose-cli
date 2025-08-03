@@ -24,8 +24,8 @@ build:
     - gradle --build-cache distZip distTar
   artifacts:
     paths:
-      - app/build/distributions/app.zip
-      - app/build/distributions/app.tar
+      - app/build/distributions/$PROJECT_NAME.zip
+      - app/build/distributions/$PROJECT_NAME.tar
     expire_in: 1 day
 
 deploy:
