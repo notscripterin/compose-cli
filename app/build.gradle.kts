@@ -22,3 +22,5 @@ tasks.register<Copy>("copyTemplates") {
     into("build/install/app/lib/templates")
     doLast { println("✅ Templates copied to install path.") }
 }
+
+distributions { main { contents { from("build/libs/templates") { into("lib/templates") } } } }
