@@ -1,4 +1,10 @@
-image: gradle:alpine
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+image: gradle:jdk17
 
 stages:
   - build
@@ -21,10 +27,6 @@ build:
 deploy:
   stage: deploy
   image: registry.gitlab.com/gitlab-org/release-cli:latest
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: never
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - echo "running release_job for $TAG"
   release:
