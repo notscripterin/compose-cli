@@ -36,7 +36,8 @@ build:
 release:
   stage: release
   image: gitlab/glab
-  needs: [build]
+  needs:
+    - build
   script:
     - echo "running release_job for $PROJECT_NAME"
     - >
