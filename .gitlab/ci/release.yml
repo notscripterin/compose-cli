@@ -1,0 +1,15 @@
+release:
+    stage: release
+    image: registry.gitlab.com/gitlab-org/release-cli
+    needs:
+        - build
+    script:
+        - echo "running release_job for $PROJECT_NAME"
+        - >
+        release-cli create
+        --name "Release $CI_COMMIT_TAG"
+        --description "Notes: $CI_COMMIT_TAG"
+        --tag-name $CI_COMMIT_TAG
+        --ref $CI_COMMIT_SHA
+        --assets-link '{"name":"Asset1","url":"$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/dist/$PROJECT_NAME.zip"}'
+        --assets-link '{"name":"Asset2","url":"$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/dist/$PROJECT_NAME.tar"}'
