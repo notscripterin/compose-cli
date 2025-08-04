@@ -40,5 +40,5 @@ release:
     - build
   script:
     - echo "running release_job for $PROJECT_NAME"
-    - glab auth login
+    - glab auth login --job-token $CI_JOB_TOKEN
     - glab release create "$CI_COMMIT_TAG" ./dist/*
