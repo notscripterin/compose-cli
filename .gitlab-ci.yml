@@ -38,9 +38,10 @@ release:
   image: gitlab/glab
   needs: [build]
   script:
-    - echo "running release_job for $TAG"
-    - glab release create "$CI_COMMIT_TAG" \
-      --title "$PROJECT_NAME" \
-      --notes "Automated release of $PROJECT_NAME" \
-      --assets-link "$PROJECT_NAME.zip" \
+    - echo "running release_job for $PROJECT_NAME"
+    - >
+      glab release create "$CI_COMMIT_TAG"
+      --title "$PROJECT_NAME"
+      --notes "Automated release of $PROJECT_NAME"
+      --assets-link "$PROJECT_NAME.zip"
       --assets-link "$PROJECT_NAME.tar"
