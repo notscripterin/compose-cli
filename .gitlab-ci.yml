@@ -25,12 +25,12 @@ build:
     - export GRADLE_USER_HOME
   script:
     - gradle --build-cache distZip distTar
-    - mv app/build/distributions/app.zip $PROJECT_NAME.zip
-    - mv app/build/distributions/app.tar $PROJECT_NAME.tar
+    - mkdir dist
+    - mv ./app/build/distributions/app.zip ./dist/$PROJECT_NAME.zip
+    - mv ./app/build/distributions/app.tar ./dist/$PROJECT_NAME.tar
   artifacts:
     paths:
-      - "*.zip"
-      - "*.tar"
+      - "./dist"
     expire_in: 1 day
 
 release:
@@ -40,9 +40,4 @@ release:
     - build
   script:
     - echo "running release_job for $PROJECT_NAME"
-    - >
-      glab release create "$CI_COMMIT_TAG"
-      --title "$PROJECT_NAME"
-      --notes "Automated release of $PROJECT_NAME"
-      --assets-link "$PROJECT_NAME.zip"
-      --assets-link "$PROJECT_NAME.tar"
+    - glab release create "$CI_COMMIT_TAG" ./dist/*
