@@ -21,11 +21,11 @@ build:
     - export GRADLE_USER_HOME
   script:
     - gradle --build-cache distZip distTar
-    - mv app/build/distributions/app.zip "${CI_PROJECT_NAME}-${CI_COMMIT_TAG}.zip"      
-    - mv app/build/distributions/app.tar "${CI_PROJECT_NAME}-${CI_COMMIT_TAG}.tar"  
-  artifacts:    
-    paths:      
-      - "*.zip"  
+    - mv app/build/distributions/app.zip "${CI_PROJECT_NAME}-${CI_COMMIT_TAG}.zip"
+    - mv app/build/distributions/app.tar "${CI_PROJECT_NAME}-${CI_COMMIT_TAG}.tar"
+  artifacts:
+    paths:
+      - "*.zip"
       - "*.tar"
     expire_in: 1 day
 
