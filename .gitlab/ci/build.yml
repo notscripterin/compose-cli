@@ -1,0 +1,15 @@
+build:
+    stage: build
+    image: gradle:jdk17
+    before_script:
+        - GRADLE_USER_HOME="$(pwd)/.gradle"
+        - export GRADLE_USER_HOME
+    script:
+        - gradle --build-cache distZip distTar
+        - mkdir dist
+        - mv ./app/build/distributions/app.zip ./dist/$PROJECT_NAME.zip
+        - mv ./app/build/distributions/app.tar ./dist/$PROJECT_NAME.tar
+    artifacts:
+        paths:
+            - "./dist"
+        expire_in: 1 day
