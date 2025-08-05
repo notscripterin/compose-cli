@@ -26,5 +26,5 @@ release:
     - build
   script:
     - echo "running release_job for $PROJECT_NAME"
-    - glab auth login --hostname $CI_SERVER_HOST --token "$GITLAB_TOKEN"
+    - glab auth login --hostname $CI_SERVER_HOST --job-token $CI_JOB_TOKEN
     - glab release create "$CI_COMMIT_TAG" ./dist/*
