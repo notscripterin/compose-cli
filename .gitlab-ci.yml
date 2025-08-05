@@ -13,7 +13,7 @@ cache:
     - .gradle/
 
 include:
-  - local: .gitlab/ci/build
+  - local: .gitlab/ci/build.yml
 
 stages:
   - build
