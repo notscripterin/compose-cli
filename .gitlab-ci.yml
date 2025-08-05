@@ -14,17 +14,8 @@ cache:
 
 include:
   - local: .gitlab/ci/build.yml
+  - local: .gitlab/ci/release.yml
 
 stages:
   - build
   - release
-
-release:
-  stage: release
-  image: gitlab/glab
-  needs:
-    - build
-  script:
-    - echo "running release_job for $PROJECT_NAME"
-    - glab auth login --hostname $CI_SERVER_HOST --job-token $CI_JOB_TOKEN
-    - glab release create "$CI_COMMIT_TAG" ./dist/*
