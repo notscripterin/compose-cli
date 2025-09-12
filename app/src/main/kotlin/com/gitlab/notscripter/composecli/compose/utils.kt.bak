@@ -6,13 +6,16 @@ import com.github.ajalt.mordant.animation.textAnimation
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
-import com.gitlab.notscripter.composecli.model.*
 import java.io.File
 import java.io.IOException
 import java.net.URLDecoder
 import java.util.regex.Pattern
 import kotlin.collections.emptyList
 import kotlin.io.deleteRecursively
+
+data class Device(val name: String, val id: String)
+
+data class Template(val name: String, val desc: String, val url: String)
 
 val t: Terminal = Terminal()
 
@@ -158,41 +161,41 @@ fun updateTemplate(templateDir: File, tempDir: File, projectName: String, projec
 
     matchAndReplace(tempDir, mapOf(templateAppId to projectId, templateAppName to projectName))
 
-    val packagePath = projectId.replace(".", File.separator)
     val templatePackagePath = templateAppId.replace(".", File.separator)
+    val tempPackagePath = projectId.replace(".", File.separator)
 
-    val mainJavaDir = File("${tempDir}/app/src/main/java")
-    val testJavaDir = File("${tempDir}/app/src/test/java")
-    val androidTestJavaDir = File("${tempDir}/app/src/androidTest/java")
+    val rootDir = File("${tempDir}/app/src/main/java")
+    val testDir = File("${tempDir}/app/src/test/java")
+    val androidTestDir = File("${tempDir}/app/src/androidTest/java")
 
-    val tempMainJavaDir = File(mainJavaDir, "temp")
-    val tempTestJavaDir = File(testJavaDir, "temp")
-    val tempAndroidTestJavaDir = File(androidTestJavaDir, "temp")
+    val topLevelTempDir = File(rootDir, "temp")
+    val topLevelTempTestDir = File(testDir, "temp")
+    val topLevelTempAndroidTestDir = File(androidTestDir, "temp")
 
-    val templateMainPackageDir = File(tempMainJavaDir, templatePackagePath.substringAfter("/"))
-    val templateTestPackageDir = File(tempTestJavaDir, templatePackagePath.substringAfter("/"))
-    val templateAndroidTestPackageDir =
-        File(tempAndroidTestJavaDir, templatePackagePath.substringAfter("/"))
+    File(rootDir, topLevelPath).renameTo(topLevelTempDir)
+    File(testDir, topLevelPath).renameTo(topLevelTempTestDir)
+    File(androidTestDir, topLevelPath).renameTo(topLevelTempAndroidTestDir)
 
-    val tempPackageDir = File(mainJavaDir, packagePath)
-    val tempTestDir = File(testJavaDir, packagePath)
-    val tempAndroidTestDir = File(androidTestJavaDir, packagePath)
+    val templatePackageDir = File(topLevelTempDir, templatePackagePath.substringAfter("/"))
+    val templateTestDir = File(topLevelTempTestDir, templatePackagePath.substringAfter("/"))
+    val templateAndroidTestDir =
+        File(topLevelTempAndroidTestDir, templatePackagePath.substringAfter("/"))
 
-    File(mainJavaDir, topLevelPath).renameTo(tempMainJavaDir)
-    File(testJavaDir, topLevelPath).renameTo(tempTestJavaDir)
-    File(androidTestJavaDir, topLevelPath).renameTo(tempAndroidTestJavaDir)
+    val tempPackageDir = File(rootDir, tempPackagePath)
+    val tempTestDir = File(testDir, tempPackagePath)
+    val tempAndroidTestDir = File(androidTestDir, tempPackagePath)
 
     tempPackageDir.mkdirs()
     tempTestDir.mkdirs()
     tempAndroidTestDir.mkdirs()
 
-    templateMainPackageDir.copyRecursively(tempPackageDir, overwrite = true)
-    templateTestPackageDir.copyRecursively(tempTestDir, overwrite = true)
-    templateAndroidTestPackageDir.copyRecursively(tempAndroidTestDir, overwrite = true)
+    templatePackageDir.copyRecursively(tempPackageDir, overwrite = true)
+    templateTestDir.copyRecursively(tempTestDir, overwrite = true)
+    templateAndroidTestDir.copyRecursively(tempAndroidTestDir, overwrite = true)
 
-    tempMainJavaDir.deleteRecursively()
-    tempTestJavaDir.deleteRecursively()
-    tempAndroidTestJavaDir.deleteRecursively()
+    topLevelTempDir.deleteRecursively()
+    topLevelTempTestDir.deleteRecursively()
+    topLevelTempAndroidTestDir.deleteRecursively()
 }
 
 fun getTemplatesDir(): File {
@@ -232,6 +235,8 @@ fun getAdbDevices(): List<Device> {
                     )
             }
 
+    // if (devices.isEmpty()) t.println("No devices found")
+    // else devices.forEach { t.println("Device: name=${it.name}, id=${it.id}") }
     return devices
 }
 
