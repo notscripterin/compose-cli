@@ -16,62 +16,62 @@ import kotlin.io.deleteRecursively
 
 val t: Terminal = Terminal()
 
-fun sh(command: String): String {
-    return ProcessBuilder("sh", "-c", command)
-        .redirectErrorStream(true)
-        .start()
-        .inputStream
-        .bufferedReader()
-        .readText()
-        .trim()
-}
+fun sh(command: String, label: String? = null, printOutput: Boolean = false): String {
+    var process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
 
-fun shln(command: String, label: String = "Loading..."): String {
-    var process: Process? = null
+    Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly() })
+    if (!label.isNullOrEmpty()) {
+        val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
-    val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+        val animation =
+            t.textAnimation<Int> { frame ->
+                val spinner = spinnerFrames[frame % spinnerFrames.size]
+                green("$spinner $label")
+            }
 
-    val animation =
-        t.textAnimation<Int> { frame ->
-            val spinner = spinnerFrames[frame % spinnerFrames.size]
-            green("$spinner $label")
-        }
+        t.cursor.hide(showOnExit = true)
 
-    t.cursor.hide(showOnExit = true)
+        try {
+            var frame = 0
+            while (process.isAlive) {
+                animation.update(frame++)
+                Thread.sleep(100)
+            }
+            val output = process.inputStream.bufferedReader().readText()
 
-    try {
-        process = ProcessBuilder("sh", "-c", command).start()
+            if (process.exitValue() != 0) {
+                // val errorOutput = process.errorStream.bufferedReader().readText()
+                // throw IOException("❌Failed to execute command: ${command}")
+                // t.println(red("❌Failed to execute command: ${command}"))
+                throw IOException()
+            }
 
-        var frame = 0
-        while (process.isAlive) {
-            animation.update(frame++)
-            Thread.sleep(100)
-        }
-        val output = process.inputStream.bufferedReader().readText()
+            animation.clear()
+            t.println(green("✔️ $label"))
+        } catch (e: IOException) {
+            animation.clear()
+            t.println(red("❌$label"))
 
-        if (process.exitValue() != 0) {
-            // val errorOutput = process.errorStream.bufferedReader().readText()
-            // throw IOException("❌Failed to execute command: ${command}")
-            // t.println(red("❌Failed to execute command: ${command}"))
+            // throw IOException(e.message)
+            t.println(red("❌Failed to execute command: ${command}"))
             throw IOException()
+        } finally {
+            animation.stop()
+            process?.destroy()
+            t.cursor.show()
         }
-
-        animation.clear()
-        t.println(green("✔️ $label"))
-
-        return output.trim()
-    } catch (e: IOException) {
-        animation.clear()
-        t.println(red("❌$label"))
-
-        // throw IOException(e.message)
-        t.println(red("❌Failed to execute command: ${command}"))
-        throw IOException()
-    } finally {
-        animation.stop()
-        process?.destroy()
-        t.cursor.show()
+    } else if (printOutput == true) {
+        process.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+            while (true) {
+                val line = reader.readLine() ?: break
+                t.println(line)
+            }
+        }
+        process.waitFor()
+        // process.inputStream.bufferedReader().lineSequence().forEach { line -> t.println(line) }
     }
+
+    return process.inputStream.bufferedReader().readText().trim()
 }
 
 fun matchAndReplace(templateDir: File, replacements: Map<String, String>) {

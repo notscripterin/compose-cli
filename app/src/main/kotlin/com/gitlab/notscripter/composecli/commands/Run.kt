@@ -9,7 +9,7 @@ import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.gitlab.notscripter.composecli.compose.getAdbDevices
 import com.gitlab.notscripter.composecli.compose.getApplicationId
 import com.gitlab.notscripter.composecli.compose.getMainActivity
-import com.gitlab.notscripter.composecli.compose.shln
+import com.gitlab.notscripter.composecli.compose.sh
 import com.gitlab.notscripter.composecli.model.Device
 import java.io.File
 
@@ -19,6 +19,8 @@ class Run : SuspendingCliktCommand() {
 
     private val deviceId by
         option("-d", "--device").help("ADB device ID (use `adb devices` to list)")
+    private val logcat by option("-l", "--logcat").help("")
+    private val tag by option("-t", "--tag").help("")
 
     override suspend fun run() {
         var selectedDeviceId = deviceId ?: ""
@@ -37,6 +39,7 @@ class Run : SuspendingCliktCommand() {
         val appId = getApplicationId(File("./"))
         val mainActivity = getMainActivity(selectedDeviceId, appId)
 
+        /*
         // Build
         shln("./gradlew assembleDebug", "Building...")
 
@@ -45,11 +48,19 @@ class Run : SuspendingCliktCommand() {
             "adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
             "Installing...",
         )
+        */
 
         // Launch
-        shln(
+        sh(
             "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
             "Launching...",
+        )
+
+        // Logcat
+        sh(
+            "adb logcat --pid=$(adb shell pidof -s ${mainActivity}) '*:S ${tag ?: "MainActivity"}'",
+            null,
+            true,
         )
     }
 }
