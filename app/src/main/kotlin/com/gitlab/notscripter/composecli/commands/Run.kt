@@ -46,19 +46,19 @@ class Run : SuspendingCliktCommand() {
         // Install
         shln(
             "adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
-            "Installing...",
+            "Installing",
         )
         */
 
         // Launch
         sh(
             "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
-            "Launching...",
+            "Launching",
         )
 
         // Logcat
         sh(
-            "adb logcat --pid=$(adb shell pidof -s ${mainActivity}) '*:S ${tag ?: "MainActivity"}'",
+            "adb logcat --pid=$(adb shell pidof -s ${appId}) '*:S ${tag ?: "MainActivity"}'",
             null,
             true,
         )

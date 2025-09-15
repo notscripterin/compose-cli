@@ -20,46 +20,40 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
     var process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
 
     Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly() })
+
     if (!label.isNullOrEmpty()) {
         val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
         val animation =
             t.textAnimation<Int> { frame ->
                 val spinner = spinnerFrames[frame % spinnerFrames.size]
-                green("$spinner $label")
+                green("$spinner $label...")
             }
 
         t.cursor.hide(showOnExit = true)
 
-        try {
-            var frame = 0
-            while (process.isAlive) {
-                animation.update(frame++)
-                Thread.sleep(100)
-            }
-            val output = process.inputStream.bufferedReader().readText()
+        var frame = 0
+        while (process.isAlive) {
+            animation.update(frame++)
+            Thread.sleep(100)
+        }
+        val output = process.inputStream.bufferedReader().readText()
 
-            if (process.exitValue() != 0) {
-                // val errorOutput = process.errorStream.bufferedReader().readText()
-                // throw IOException("❌Failed to execute command: ${command}")
-                // t.println(red("❌Failed to execute command: ${command}"))
-                throw IOException()
-            }
-
+        if (process.exitValue() != 0) {
+            // val errorOutput = process.errorStream.bufferedReader().readText()
+            // throw IOException("❌Failed to execute command: ${command}")
+            // t.println(red("❌Failed to execute command: ${command}"))
             animation.clear()
-            t.println(green("✔️ $label"))
-        } catch (e: IOException) {
-            animation.clear()
-            t.println(red("❌$label"))
-
-            // throw IOException(e.message)
+            t.println(red("❌$label..."))
             t.println(red("❌Failed to execute command: ${command}"))
             throw IOException()
-        } finally {
-            animation.stop()
-            process?.destroy()
-            t.cursor.show()
         }
+
+        animation.clear()
+        t.println(green("✔️ $label..."))
+
+        animation.stop()
+        t.cursor.show()
     } else if (printOutput == true) {
         process.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
             while (true) {
@@ -68,10 +62,11 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
             }
         }
         process.waitFor()
-        // process.inputStream.bufferedReader().lineSequence().forEach { line -> t.println(line) }
     }
 
-    return process.inputStream.bufferedReader().readText().trim()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    process.destroy()
+    return output
 }
 
 fun matchAndReplace(templateDir: File, replacements: Map<String, String>) {
