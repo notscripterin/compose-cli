@@ -233,6 +233,9 @@ fun getAdbDevices(): List<Device> {
                     )
             }
 
+    if (devices.isEmpty()) {
+        t.println(red("adb devices not found."))
+    }
     return devices
 }
 
