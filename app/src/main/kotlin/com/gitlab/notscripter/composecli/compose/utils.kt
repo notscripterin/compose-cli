@@ -58,7 +58,13 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
         process.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
             while (true) {
                 val line = reader.readLine() ?: break
-                t.println(line)
+                when {
+                    line.contains(" D ") -> t.println(blue(line))
+                    line.contains(" I ") -> t.println(green(line))
+                    line.contains(" W ") -> t.println(yellow(line))
+                    line.contains(" E ") -> t.println(red(line))
+                    line.contains(" F ") -> t.println(red(line))
+                }
             }
         }
         process.waitFor()

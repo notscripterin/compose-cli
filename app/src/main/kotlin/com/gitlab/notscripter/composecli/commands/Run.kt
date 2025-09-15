@@ -2,6 +2,8 @@ package com.gitlab.notscripter.composecli
 
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.core.Context
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.mordant.rendering.TextColors.*
@@ -19,8 +21,8 @@ class Run : SuspendingCliktCommand() {
 
     private val deviceId by
         option("-d", "--device").help("ADB device ID (use `adb devices` to list)")
-    private val logcat by option("-l", "--logcat").help("")
-    private val tag by option("-t", "--tag").help("")
+    private val logcat by option("-l", "--log").flag().help("Show log (default tag=MainActivity)")
+    private val tag by option("-t", "--tag").help("Tag for logcat").default("MainActivity")
 
     override suspend fun run() {
         var selectedDeviceId = deviceId ?: ""
@@ -41,13 +43,10 @@ class Run : SuspendingCliktCommand() {
 
         /*
         // Build
-        shln("./gradlew assembleDebug", "Building...")
+        sh("./gradlew assembleDebug", "Building...")
 
         // Install
-        shln(
-            "adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
-            "Installing",
-        )
+        sh("adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk", "Installing")
         */
 
         // Launch
@@ -57,10 +56,8 @@ class Run : SuspendingCliktCommand() {
         )
 
         // Logcat
-        sh(
-            "adb logcat --pid=$(adb shell pidof -s ${appId}) '*:S ${tag ?: "MainActivity"}'",
-            null,
-            true,
-        )
+        if (logcat) {
+            sh("adb logcat --pid=$(adb shell pidof -s ${appId}) '*:S ${tag}'", null, true)
+        }
     }
 }
