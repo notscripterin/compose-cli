@@ -45,9 +45,12 @@ class Run : SuspendingCliktCommand() {
         val appId = getApplicationId(File("./"))
         if (appId == null) return
         val mainActivity = getMainActivity(currentDeviceId, appId)
+        if (mainActivity == null) return
 
+        /*
+         */
         // Build
-        sh("./gradlew assembleDebug", "Building...")
+        sh("./gradlew assembleDebug", "Building")
 
         // Install
         sh(

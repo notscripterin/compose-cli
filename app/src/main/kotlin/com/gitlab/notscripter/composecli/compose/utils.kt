@@ -16,9 +16,11 @@ val t: Terminal = Terminal()
 
 fun sh(command: String, label: String? = null, printOutput: Boolean = false): String? {
     var process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
+    t.cursor.hide(showOnExit = true)
 
-    // Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly()
-    // })
+    /*
+    Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly() })
+    */
 
     if (!label.isNullOrEmpty()) {
         val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
@@ -28,8 +30,6 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
                 val spinner = spinnerFrames[frame % spinnerFrames.size]
                 green("$spinner $label...")
             }
-
-        t.cursor.hide(showOnExit = true)
 
         var frame = 0
         while (process.isAlive) {
@@ -48,7 +48,6 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
         t.println(green("✔️ $label..."))
 
         animation.stop()
-        t.cursor.show()
     } else if (printOutput == true) {
         process.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
             while (true) {
@@ -67,6 +66,7 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
 
     val output = process.inputStream.bufferedReader().readText().trim()
     process.destroy()
+    t.cursor.show()
     return output
 }
 
