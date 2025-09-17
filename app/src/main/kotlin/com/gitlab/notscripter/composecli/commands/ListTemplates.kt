@@ -13,6 +13,7 @@ class ListTemplates : SuspendingCliktCommand() {
 
     override suspend fun run() {
         val templates = listTemplates()
+        if (templates == null) return
 
         t.println("Available templates:")
         templates.forEach { t.println(it) }

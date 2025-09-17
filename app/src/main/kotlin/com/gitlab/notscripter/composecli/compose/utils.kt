@@ -8,15 +8,13 @@ import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.github.ajalt.mordant.terminal.Terminal
 import com.gitlab.notscripter.composecli.model.*
 import java.io.File
-import java.io.IOException
 import java.net.URLDecoder
 import java.util.regex.Pattern
-import kotlin.collections.emptyList
 import kotlin.io.deleteRecursively
 
 val t: Terminal = Terminal()
 
-fun sh(command: String, label: String? = null, printOutput: Boolean = false): String {
+fun sh(command: String, label: String? = null, printOutput: Boolean = false): String? {
     var process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
 
     // Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly()
@@ -38,16 +36,12 @@ fun sh(command: String, label: String? = null, printOutput: Boolean = false): St
             animation.update(frame++)
             Thread.sleep(100)
         }
-        val output = process.inputStream.bufferedReader().readText()
 
         if (process.exitValue() != 0) {
-            // val errorOutput = process.errorStream.bufferedReader().readText()
-            // throw IOException("❌Failed to execute command: ${command}")
-            // t.println(red("❌Failed to execute command: ${command}"))
             animation.clear()
             t.println(red("❌$label..."))
             t.println(red("❌Failed to execute command: ${command}"))
-            throw IOException()
+            return null
         }
 
         animation.clear()
@@ -92,16 +86,85 @@ fun matchAndReplace(templateDir: File, replacements: Map<String, String>) {
         }
 }
 
-fun listTemplates(): List<String> {
-    val templatesDir = getTemplatesDir()
-    return templatesDir.listFiles { file -> file.isDirectory }?.map { it.name } ?: emptyList()
+fun getTemplatesDir(): File {
+    val jarPath =
+        File(
+            URLDecoder.decode(
+                object {}.javaClass.protectionDomain.codeSource.location.path,
+                "UTF-8",
+            )
+        )
+
+    return jarPath.parentFile.resolve("templates")
 }
 
-fun getApplicationName(pwd: File): String {
+fun getTemplateDir(templateName: String): File? {
+    val templatesDir = getTemplatesDir()
+    val templatePath = templatesDir.resolve(templateName)
+    if (!templatePath.exists()) {
+        t.println(red("'${templatesDir}/${templateName}' not found."))
+        return null
+    }
+
+    return templatePath
+}
+
+fun getAdbDevices(): List<Device>? {
+    val output = sh("adb devices -l")
+    if (output == null) return null
+
+    val devices: List<Device> =
+        output
+            .split("\n")
+            .subList(1, output.split("\n").size)
+            .filter { it.isNotBlank() && it.contains("device ") }
+            .mapNotNull { line ->
+                val parts = line.split("\\s+".toRegex(), limit = 2)
+                if (parts.size < 2) null
+                else
+                    Device(
+                        name =
+                            parts[1].substringAfter("model:").substringBefore(" ").takeIf {
+                                it.isNotEmpty()
+                            } ?: "Unknown",
+                        id = parts[0].trim(),
+                    )
+            }
+
+    if (devices.isEmpty()) {
+        t.println(red("adb devices not found."))
+        return null
+    }
+    return devices
+}
+
+fun isValidHexaCode(hex: String): Boolean {
+    val hexaPattern = Pattern.compile("^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$")
+
+    val matcher = hexaPattern.matcher(hex)
+
+    return matcher.matches()
+}
+
+fun resizeImage(image: File, size: String, output: File) {
+    sh("magick ${image} -resize ${size} ${output}")
+}
+
+fun listTemplates(): List<String>? {
+    val templatesDir = getTemplatesDir()
+    val templates = templatesDir.listFiles { file -> file.isDirectory }?.map { it.name }
+    if (templates.isNullOrEmpty()) {
+        t.println("No template found.")
+        return null
+    }
+    return templates
+}
+
+fun getApplicationName(pwd: File): String? {
     val file = File("${pwd}/settings.gradle.kts")
     if (!file.exists()) {
         t.println(red("'${pwd}/settings.gradle.kts' not found"))
-        throw IOException()
+        return null
     }
     val appName =
         file
@@ -113,7 +176,8 @@ fun getApplicationName(pwd: File): String {
             ?.removeSurrounding("\"")
 
     if (appName.isNullOrBlank()) {
-        throw IOException()
+        t.println(red("'rootProject.name' not found in '${file}'"))
+        return null
     }
 
     return appName
@@ -135,21 +199,23 @@ fun getApplicationId(pwd: File): String? {
             ?.removeSurrounding("\"")
 
     if (appId.isNullOrBlank()) {
-        t.println(red("'applicationId' not found"))
+        t.println(red("'applicationId' not found in '${file}'"))
         return null
     }
 
     return appId
 }
 
-fun getMainActivity(deviceId: String, applicationId: String): String {
+fun getMainActivity(deviceId: String, applicationId: String): String? {
     val output =
         sh("adb -s ${deviceId} shell cmd package resolve-activity --brief ${applicationId}")
+    if (output == null) return null
 
     var mainActivity = output.lines().find { it.contains("/") }
 
     if (mainActivity.isNullOrBlank()) {
-        throw IOException()
+        t.println(red("'MainActivity' not found."))
+        return null
     }
 
     return mainActivity
@@ -164,7 +230,7 @@ fun updateTemplate(
     val templateAppName = getApplicationName(templateDir)
     val templateAppId = getApplicationId(templateDir)
 
-    if (templateAppId == null) return false
+    if (templateAppId == null || templateAppName == null) return false
 
     val topLevelPath = templateAppId.substringBefore(".")
 
@@ -207,59 +273,4 @@ fun updateTemplate(
     tempAndroidTestJavaDir.deleteRecursively()
 
     return true
-}
-
-fun getTemplatesDir(): File {
-    val jarPath =
-        File(
-            URLDecoder.decode(
-                object {}.javaClass.protectionDomain.codeSource.location.path,
-                "UTF-8",
-            )
-        )
-
-    return jarPath.parentFile.resolve("templates")
-}
-
-fun getTemplateDir(templateName: String): File {
-    val templatesDir = getTemplatesDir()
-    return templatesDir.resolve(templateName)
-}
-
-fun getAdbDevices(): List<Device> {
-    val output = sh("adb devices -l")
-    val devices: List<Device> =
-        output
-            .split("\n")
-            .subList(1, output.split("\n").size)
-            .filter { it.isNotBlank() && it.contains("device ") }
-            .mapNotNull { line ->
-                val parts = line.split("\\s+".toRegex(), limit = 2)
-                if (parts.size < 2) null
-                else
-                    Device(
-                        name =
-                            parts[1].substringAfter("model:").substringBefore(" ").takeIf {
-                                it.isNotEmpty()
-                            } ?: "Unknown",
-                        id = parts[0].trim(),
-                    )
-            }
-
-    if (devices.isEmpty()) {
-        t.println(red("adb devices not found."))
-    }
-    return devices
-}
-
-fun isValidHexaCode(hex: String): Boolean {
-    val hexaPattern = Pattern.compile("^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$")
-
-    val matcher = hexaPattern.matcher(hex)
-
-    return matcher.matches()
-}
-
-fun resizeImage(image: File, size: String, output: File) {
-    sh("magick ${image} -resize ${size} ${output}")
 }

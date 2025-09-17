@@ -20,16 +20,15 @@ class Run : SuspendingCliktCommand() {
     override fun help(context: Context) =
         "   Build and launch on a device or emulator — no mouse needed"
 
-    private val devices: List<Device> = getAdbDevices()
-
     private val deviceId by
-        option("-d", "--device")
-            .help("ADB device ID (use `adb devices` to list)")
-            .default(devices[0].id)
+        option("-d", "--device").help("ADB device ID (use `adb devices` to list)")
     private val logcat by option("-l", "--log").flag().help("Show log (default tag=MainActivity)")
     private val tag by option("-t", "--tag").help("Tag for logcat").default("MainActivity")
 
     override suspend fun run() {
+        val devices: List<Device>? = getAdbDevices()
+        if (devices == null) return
+
         if (devices.size == 0) {
             t.println(red("There is no adb devices found."))
             return
@@ -42,21 +41,23 @@ class Run : SuspendingCliktCommand() {
             return
         }
 
+        val currentDeviceId = deviceId ?: devices[0].id
         val appId = getApplicationId(File("./"))
         if (appId == null) return
-        val mainActivity = getMainActivity(deviceId, appId)
+        val mainActivity = getMainActivity(currentDeviceId, appId)
 
-        /*
         // Build
         sh("./gradlew assembleDebug", "Building...")
 
         // Install
-        sh("adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk", "Installing")
-        */
+        sh(
+            "adb -s ${currentDeviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
+            "Installing",
+        )
 
         // Launch
         sh(
-            "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
+            "adb -s ${currentDeviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
             "Launching",
         )
 

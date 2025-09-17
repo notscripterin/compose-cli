@@ -44,6 +44,7 @@ class Init : SuspendingCliktCommand() {
         }
 
         val templateDir = getTemplateDir(templateName ?: "EmptyActivity")
+        if (templateDir == null) return
 
         if (!templateDir.exists()) t.println(red("Template not found"))
 
