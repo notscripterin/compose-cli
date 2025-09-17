@@ -50,7 +50,8 @@ class Init : SuspendingCliktCommand() {
         val tempDir = Files.createTempDirectory("compose-cli-template").toFile()
         templateDir.copyRecursively(tempDir, overwrite = true)
 
-        updateTemplate(templateDir, tempDir, projectName, projectId)
+        val updateTemplateOutput = updateTemplate(templateDir, tempDir, projectName, projectId)
+        if (!updateTemplateOutput) return
 
         val destination = File(projectPath ?: projectName)
         if (destination.exists()) error("Directory already exists")

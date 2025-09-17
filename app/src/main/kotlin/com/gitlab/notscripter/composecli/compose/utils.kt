@@ -100,6 +100,7 @@ fun listTemplates(): List<String> {
 fun getApplicationName(pwd: File): String {
     val file = File("${pwd}/settings.gradle.kts")
     if (!file.exists()) {
+        t.println(red("'${pwd}/settings.gradle.kts' not found"))
         throw IOException()
     }
     val appName =
@@ -118,10 +119,11 @@ fun getApplicationName(pwd: File): String {
     return appName
 }
 
-fun getApplicationId(pwd: File): String {
+fun getApplicationId(pwd: File): String? {
     val file = File("${pwd}/app/build.gradle.kts")
     if (!file.exists()) {
-        throw IOException()
+        t.println(red("'${file}' not found"))
+        return null
     }
     val appId =
         file
@@ -133,7 +135,8 @@ fun getApplicationId(pwd: File): String {
             ?.removeSurrounding("\"")
 
     if (appId.isNullOrBlank()) {
-        throw IOException()
+        t.println(red("'applicationId' not found"))
+        return null
     }
 
     return appId
@@ -152,9 +155,16 @@ fun getMainActivity(deviceId: String, applicationId: String): String {
     return mainActivity
 }
 
-fun updateTemplate(templateDir: File, tempDir: File, projectName: String, projectId: String) {
+fun updateTemplate(
+    templateDir: File,
+    tempDir: File,
+    projectName: String,
+    projectId: String,
+): Boolean {
     val templateAppName = getApplicationName(templateDir)
     val templateAppId = getApplicationId(templateDir)
+
+    if (templateAppId == null) return false
 
     val topLevelPath = templateAppId.substringBefore(".")
 
@@ -195,6 +205,8 @@ fun updateTemplate(templateDir: File, tempDir: File, projectName: String, projec
     tempMainJavaDir.deleteRecursively()
     tempTestJavaDir.deleteRecursively()
     tempAndroidTestJavaDir.deleteRecursively()
+
+    return true
 }
 
 fun getTemplatesDir(): File {

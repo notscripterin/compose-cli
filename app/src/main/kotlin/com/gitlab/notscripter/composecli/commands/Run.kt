@@ -43,6 +43,7 @@ class Run : SuspendingCliktCommand() {
         }
 
         val appId = getApplicationId(File("./"))
+        if (appId == null) return
         val mainActivity = getMainActivity(deviceId, appId)
 
         /*
