@@ -19,7 +19,8 @@ val t: Terminal = Terminal()
 fun sh(command: String, label: String? = null, printOutput: Boolean = false): String {
     var process = ProcessBuilder("sh", "-c", command).redirectErrorStream(true).start()
 
-    Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly() })
+    // Runtime.getRuntime().addShutdownHook(Thread { if (process.isAlive) process.destroyForcibly()
+    // })
 
     if (!label.isNullOrEmpty()) {
         val spinnerFrames = listOf("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")

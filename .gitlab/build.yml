@@ -7,7 +7,7 @@ build:
   script:
     - gradle --build-cache distTar
     - mkdir dist
-    - mv ./app/build/distributions/app.tar ./dist/$PROJECT_NAME.tar
+    - mv ./app/build/distributions/* ./dist
   artifacts:
     paths:
       - "./dist"
