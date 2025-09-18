@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.prompt
 import com.github.ajalt.mordant.rendering.TextColors.*
 import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.gitlab.notscripter.composecli.compose.isValidHexaCode
@@ -20,9 +21,9 @@ class Launcher : SuspendingCliktCommand() {
         "🎨Generate adaptive launcher icons without dragging SVGs around"
 
     private val foregroundOpt by
-        option("-f", "--foreground").help("Image path for the foreground layer")
+        option("-f", "--foreground").help("Image path for the foreground layer").prompt()
     private val backgroundOpt by
-        option("-b", "--background").help("Image path or HEX color for the background")
+        option("-b", "--background").help("Image path or HEX color for the background").prompt()
 
     private val foregroundArg by argument().optional()
     private val backgroundArg by argument().optional()

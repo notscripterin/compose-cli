@@ -2,6 +2,8 @@ package com.gitlab.notscripter.composecli
 
 import com.github.ajalt.clikt.command.SuspendingCliktCommand
 import com.github.ajalt.clikt.core.Context
+import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.mordant.rendering.TextColors.*
@@ -9,7 +11,8 @@ import com.github.ajalt.mordant.rendering.TextStyles.*
 import com.gitlab.notscripter.composecli.compose.getAdbDevices
 import com.gitlab.notscripter.composecli.compose.getApplicationId
 import com.gitlab.notscripter.composecli.compose.getMainActivity
-import com.gitlab.notscripter.composecli.compose.shln
+import com.gitlab.notscripter.composecli.compose.sh
+import com.gitlab.notscripter.composecli.compose.t
 import com.gitlab.notscripter.composecli.model.Device
 import java.io.File
 
@@ -19,37 +22,51 @@ class Run : SuspendingCliktCommand() {
 
     private val deviceId by
         option("-d", "--device").help("ADB device ID (use `adb devices` to list)")
+    private val logcat by option("-l", "--log").flag().help("Show log (default tag=MainActivity)")
+    private val tag by option("-t", "--tag").help("Tag for logcat").default("MainActivity")
 
     override suspend fun run() {
-        var selectedDeviceId = deviceId ?: ""
-        if (deviceId.isNullOrEmpty()) {
-            val adbDevices: List<Device> = getAdbDevices()
-            when (adbDevices.size) {
-                1 -> selectedDeviceId = adbDevices[0].id
-                in 2..10 ->
-                    error(
-                        "There is more than one adb devices, please specify one deviceId with '-d' or '--devide' option."
-                    )
-                else -> error("There is no adb devices found.")
-            }
+        val devices: List<Device>? = getAdbDevices()
+        if (devices == null) return
+
+        if (devices.size == 0) {
+            t.println(red("There is no adb devices found."))
+            return
+        } else if (devices.size > 1) {
+            t.println(
+                red(
+                    "There is more than one adb devices, please specify one deviceId with '-d' or '--device'."
+                )
+            )
+            return
         }
 
+        val currentDeviceId = deviceId ?: devices[0].id
         val appId = getApplicationId(File("./"))
-        val mainActivity = getMainActivity(selectedDeviceId, appId)
+        if (appId == null) return
+        val mainActivity = getMainActivity(currentDeviceId, appId)
+        if (mainActivity == null) return
 
+        /*
+         */
         // Build
-        shln("./gradlew assembleDebug", "Building...")
+        sh("./gradlew assembleDebug", "Building")
 
         // Install
-        shln(
-            "adb -s ${deviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
-            "Installing...",
+        sh(
+            "adb -s ${currentDeviceId} install ./app/build/outputs/apk/debug/app-debug.apk",
+            "Installing",
         )
 
         // Launch
-        shln(
-            "adb -s ${deviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
-            "Launching...",
+        sh(
+            "adb -s ${currentDeviceId} shell am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -n ${mainActivity}",
+            "Launching",
         )
+
+        // Logcat
+        if (logcat) {
+            sh("adb logcat --pid=$(adb shell pidof -s ${appId}) '*:S ${tag}'", null, true)
+        }
     }
 }
